@@ -20,8 +20,10 @@ type MethodMap struct {
 func APIHandler(path string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, path)
-		_, ok := Routes[path]
 
+		w.Header().Set("Content-type", "application/json")
+
+		_, ok := Routes[path]
 		if ok {
 			switch r.Method {
 			case http.MethodGet:
