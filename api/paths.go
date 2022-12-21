@@ -6,7 +6,7 @@ import (
 
 // ALl paths are relative to /api/v1. This means a path of /test actually means /api/v1/test.
 var Routes map[string]MethodMap = map[string]MethodMap{
-	"/test": {
-		Get: routes.GetTest,
+	"/auth/signup": {
+		Post: routes.PostSignup,
 	},
 }
