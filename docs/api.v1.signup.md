@@ -22,7 +22,7 @@ where `<UUID>` is a string containing the uuid of the newly created user.
 ### Errenous Response
 ```
 {
-    "Error": <ERROR>
+    "Error(s)": <ERROR>
 }
 ```
-where `<ERROR>` is a string containing an error message.
+where `<ERROR>` is an array of strings containing error messages.

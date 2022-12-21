@@ -30,29 +30,43 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Errors relating to validation / items not being present
-	validationError := ""
+	validationErrors := []string{}
 
 	if decoderError != nil {
-		validationError = "Unable to decode JSON body."
-	} else if signupParameters["Email"] == "" {
-		validationError = "Required parameter 'Email' not provided."
-	} else if signupParameters["MasterHash"] == "" {
-		validationError = "Required parameter 'MasterHash' not provided."
-	} else if signupParameters["ProtectedDatabaseKey"] == "" {
-		validationError = "Required parameter 'ProtectedDatabaseKey' not provided."
-	} else if decodingMasterHashBytesError != nil {
-		validationError = "Unable to decode hex encoded parameter 'MasterHash'."
-	} else if len(protectedDatabaseParts) != 2 {
-		validationError = "Unable to split parameter 'ProtectedDatabaseKey' into its IV and key."
-	} else if decodingProtectedDatabaseKeyError != nil {
-		validationError = "Unable to decode hex encoded key from split parameter 'ProtectedDatabaseKey'."
-	} else if decodingProtectedDatabaseKeyIVError != nil {
-		validationError = "Unable to decode hex encoded IV from split parameter 'ProtectedDatabaseKey'."
+		validationErrors = append(validationErrors, "Unable to decode JSON body.")
 	}
 
-	if validationError != "" {
+	if signupParameters["Email"] == "" {
+		validationErrors = append(validationErrors, "Required parameter 'Email' not provided.")
+	}
+
+	if signupParameters["MasterHash"] == "" {
+		validationErrors = append(validationErrors, "Required parameter 'MasterHash' not provided.")
+	}
+
+	if signupParameters["ProtectedDatabaseKey"] == "" {
+		validationErrors = append(validationErrors, "Required parameter 'ProtectedDatabaseKey' not provided.")
+	}
+
+	if decodingMasterHashBytesError != nil {
+		validationErrors = append(validationErrors, "Unable to decode hex encoded parameter 'MasterHash'.")
+	}
+
+	if len(protectedDatabaseParts) != 2 {
+		validationErrors = append(validationErrors, "Unable to split parameter 'ProtectedDatabaseKey' into its IV and key.")
+	}
+
+	if decodingProtectedDatabaseKeyError != nil {
+		validationErrors = append(validationErrors, "Unable to decode hex encoded key from split parameter 'ProtectedDatabaseKey'.")
+	}
+
+	if decodingProtectedDatabaseKeyIVError != nil {
+		validationErrors = append(validationErrors, "Unable to decode hex encoded IV from split parameter 'ProtectedDatabaseKey'.")
+	}
+
+	if len(validationErrors) != 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		jsonResponse.Encode(map[string]any{"Error": validationError})
+		jsonResponse.Encode(map[string]any{"Error(s)": validationErrors})
 		return
 	}
 
