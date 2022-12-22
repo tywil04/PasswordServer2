@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	psFs "PasswordServer2/lib/fs"
 )
 
 //go:generate yarn
@@ -20,7 +22,7 @@ func SvelteKitHandler(path string) http.Handler {
 	if err != nil {
 		panic(err)
 	}
-	filesystem := http.FS(fsys)
+	filesystem := psFs.FileSystem{Fs: http.FS(fsys)}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, path)
