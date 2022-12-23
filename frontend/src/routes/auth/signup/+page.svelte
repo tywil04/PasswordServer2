@@ -181,7 +181,7 @@ of 12 characters or more.</pre>
         padding: 20px;
         border: 1px solid var(--lightGray4);
         background-color: white;
-        border-radius: var(--borderRadius);
+        border-radius: calc(var(--borderRadius) * 2);
     }
 
     .buttonGroup {
@@ -192,7 +192,7 @@ of 12 characters or more.</pre>
     .disclaimer {
         padding: 0;
         margin: 0;
-        font-family: var(--defaultFontFamily);
+        font-family: var(--fontFamily);
     }
 
     .specialCharacters {

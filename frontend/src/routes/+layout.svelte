@@ -39,14 +39,19 @@
         --animationDuration: 100ms;
 
         --borderRadius: 6px;
-        --defaultPadding: 3px 7px;
-        --defaultFontSize: small;
-        --defaultFontFamiy: sans-serif;
+        --padding: 3px 7px;
+
+        --fontSize: small;
+        --fontSizeSmall: x-small;
+        --mobileFontSize: normal;
+        --mobileFontSizeSmall: small;
+
+        --fontFamiy: sans-serif;
     }
 
     :global(*) {
-        font-size: var(--defaultFontSize);
-        font-family: var(--defaultFontFamiy);
+        font-size: var(--fontSize);
+        font-family: var(--fontFamiy);
     }
 
     :global(.spacer) {
@@ -71,6 +76,11 @@
     }
 
     @media only screen and (max-width: 600px) {
+        :global(:root) {
+            --fontSize: var(--mobileFontSize);
+            --fontSizeSmall: var(--mobileFontSizeSmall);
+        }
+
         :global(.spacer.verticalDesktopHorizontalMobile.big) {
             height: 15px;
         }

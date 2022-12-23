@@ -25,7 +25,7 @@
         color: var(--textLight);
         border: 1px solid var(--lightGray4);
         border-radius: var(--borderRadius);
-        padding: var(--defaultPadding);
+        padding: var(--padding);
         transition-duration: var(--animationDuration);
         text-decoration: none;
         text-align: center;

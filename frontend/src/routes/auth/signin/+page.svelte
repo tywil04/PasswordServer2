@@ -155,7 +155,7 @@ To sign in, ender your credentials.</pre>
         padding: 20px;
         border: 1px solid var(--lightGray4);
         background-color: white;
-        border-radius: var(--borderRadius);
+        border-radius: calc(var(--borderRadius) * 2);
     }
 
     .buttonGroup {
@@ -166,7 +166,7 @@ To sign in, ender your credentials.</pre>
     .disclaimer {
         padding: 0;
         margin: 0;
-        font-family: var(--defaultFontFamily);
+        font-family: var(--fontFamily);
     }
 
     @media only screen and (max-width: 600px) {

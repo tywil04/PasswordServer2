@@ -60,13 +60,13 @@
 
 <style>
     .subtleText {
-        font-size: x-small;
+        font-size: var(--fontSizeSmall);
         color: var(--darkGray1);
     }
 
     .validationFailedText {
         margin-top: 2px;
-        font-size: x-small;
+        font-size: var(--fontSizeSmall);
         color: var(--red);
     }
 
@@ -76,7 +76,7 @@
 
     .outer {
         display: flex;
-        flex-direction: column  ;
+        flex-direction: column;
         height: fit-content;
     }
 
@@ -90,7 +90,7 @@
         background-color: var(--lightGray5);
         border: 1px solid var(--lightGray4);
         border-radius: var(--borderRadius);
-        padding: var(--defaultPadding);
+        padding: var(--padding);
         margin: 0;
     }
 
@@ -111,9 +111,9 @@
         border: 1px solid var(--lightGray4);
         border-left: 0px;
         border-radius: 0px var(--borderRadius) var(--borderRadius) 0px;
-        padding: var(--defaultPadding);
+        padding: var(--padding);
         font-family: monospace;
-        font-size: x-small;
+        font-size: var(--fontSizeSmall);
         color: var(--darkGray1);
     }
 
