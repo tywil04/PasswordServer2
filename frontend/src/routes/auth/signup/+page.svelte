@@ -8,36 +8,37 @@
     let data = {
         email: {
             value: "",
-            valid: false,
+            valid: true,
         },
         password: {
             value: "",
-            valid: false,
+            valid: true,
         },
         passwordConfirm: {
             value: "",
-            valid: false,
+            valid: true,
         }
     }
 
+    let error = ""
+
     async function signup() {
-        if (!data.email.valid) {
-            console.log("Email not valid!")
+        error = ""
+
+        if (!data.email.valid || data.email.value == "") {
             return
         }
 
-        if (!data.password.valid) {
-            console.log("Password not valid!")
+        if (!data.password.valid || data.password.value == "") {
             return
         }
 
-        if (!data.passwordConfirm.valid) {
-            console.log("Password confirm not valid!")
+        if (!data.passwordConfirm.valid || data.passwordConfirm.value == "") {
             return 
         }
 
         if (data.password.value !== data.passwordConfirm.value) {
-            console.log("Password and Password confirm are not the same.")
+            error = "Passwords are not the same."
             return
         }
 
@@ -63,7 +64,29 @@
         if (success) {
             window.location = "/"
         } else {
-            window.location.reload()
+            // reset data
+            data = {
+                email: {
+                    value: "",
+                    valid: true,
+                },
+                password: {
+                    value: "",
+                    valid: true,
+                },
+                passwordConfirm: {
+                    value: "",
+                    valid: true,
+                }
+            }
+
+            let tempError = []
+
+            for (let error of jsonResponse["Errors(s)"]) {
+                tempError.push(error["Message"])
+            }
+
+            error = tempError.join("\n")
         }
     }
 </script>
@@ -73,11 +96,11 @@
 </svelte:head>
 
 <main>
-    <div class="rowColumnContainer">
-        <div class="container">
-            <h1>Sign up</h1>
+    <div class="outer">
+        <div class="inner">
+            <h1 class="title">Sign up</h1>
             
-            <pre>To sign in, click the button labled 'Sign in'
+            <pre class="disclaimer">To sign in, click the button labled 'Sign in'
 to be redirected to the correct page.
 
 To sign up, ender your credentials. 
@@ -95,32 +118,25 @@ of 12 characters or more.</pre>
     
         <div class="spacer verticalDesktopHorizontalMobile big"/>
     
-        <form on:submit|preventDefault={signup} class="container">
-            <label class="inputLabel" for="email">Email</label>
-    
-            <div class="spacer small"/>
-    
-            <TextInput bind:value={data.email.value} bind:valid={data.email.valid} validation="email" name="email" autofocus autocomplete="newemail" grow/>
+        <form on:submit|preventDefault={signup} class="inner">
+            <TextInput label="Email" bind:value={data.email.value} bind:valid={data.email.valid} required validation="email" invalidText="Invalid email address." name="email" autocomplete="email" grow/>
     
             <div class="spacer big"/>
     
-            <label class="inputLabel" for="password">Password</label>
-    
-            <div class="spacer small"/>
-    
-            <TextInput bind:value={data.password.value} bind:valid={data.password.valid} visibilityButton validation="password" name="password" autocomplete="newpassword" grow/>
-    
-            <div class="spacer big"/>
-    
-            <label class="inputLabel" for="password">Password Confirm</label>
-
-            <div class="spacer small"/>
-
-            <TextInput bind:value={data.passwordConfirm.value} bind:valid={data.passwordConfirm.valid} visibilityButton validation="password" name="passwordConfirm" autocomplete="newpassword" grow/>
+            <TextInput label="Password" bind:value={data.password.value} bind:valid={data.password.valid} required visibilityButton validation="password" invalidText="Invalid password." name="password" autocomplete="new-password" grow/>
     
             <div class="spacer big"/>
 
-            <div class="buttonContainer">
+            <TextInput label="Password Confirm" bind:value={data.passwordConfirm.value} bind:valid={data.passwordConfirm.valid} required visibilityButton validation="password" invalidText="Invalid password confirm." name="passwordConfirm" autocomplete="password" grow/>
+    
+            <div class="spacer big"/>
+
+            {#if error !== ""}
+                <span class="validationFailed">{error}</span>
+                <div class="spacer big"/>
+            {/if}
+
+            <div class="buttonGroup">
                 <Button submit grow variant="accent">Sign up</Button>
     
                 <div class="spacer vertical big"/>
@@ -141,7 +157,11 @@ of 12 characters or more.</pre>
         justify-content: center;
     }
 
-    .rowColumnContainer {
+    .validationFailed {
+        color: var(--red);
+    }
+
+    .outer {
         display: flex;
         flex-direction: row;
         width: fit-content;
@@ -150,12 +170,12 @@ of 12 characters or more.</pre>
         margin-right: auto;
     }
 
-    .container > h1 {
+    .title {
         margin-top: 0;
         margin-bottom: 10px;
     }
 
-    .container {
+    .inner {
         width: fit-content;
         height: fit-content;
         padding: 20px;
@@ -164,64 +184,29 @@ of 12 characters or more.</pre>
         border-radius: var(--borderRadius);
     }
 
-    label.inputLabel {
-        text-align: left;
-    }
-
-    label.inputLabel::after {
-        font-size: x-small;
-        content: " (required)";
-        color: var(--darkGray1);
-    }
-
-    div.spacer {
-        padding: 0;
-        margin: 0;
-    }
-
-    div.spacer.big:not(.vertical) {
-        height: 15px;
-    }
-
-    div.spacer.small:not(.vertical) {
-        height: 2px;
-    }
-
-    div.spacer.vertical.big {
-        width: 10px;
-    }
-
-    div.spacer.verticalDesktopHorizontalMobile.big {
-        width: 15px;
-    }
-
-    div.buttonContainer {
+    .buttonGroup {
         display: flex;
         flex-direction: row;
     }
 
-    .container > pre {
+    .disclaimer {
         padding: 0;
         margin: 0;
         font-family: var(--defaultFontFamily);
     }
 
-    code.specialCharacters {
+    .specialCharacters {
         color: var(--darkGray1);
     }
 
     @media only screen and (max-width: 600px) {
-        .rowColumnContainer {
+        .outer {
             flex-direction: column;
         }
 
-        .rowColumnContainer > * {
+        .outer > * {
             flex-grow: 1;
             width: auto;
-        }
-
-        div.spacer.verticalDesktopHorizontalMobile.big {
-            height: 15px;
         }
     }
 </style>

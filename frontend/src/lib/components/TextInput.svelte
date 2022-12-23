@@ -1,13 +1,16 @@
 <script>
-    import { processProps } from "$lib/js/utils.js"
-
     export let value = null
     export let validation = ""
+    export let invalidText = ""
     export let valid = true
     export let visibilityButton = false
     export let grow = false
+    export let label = ""
+    export let name = ""
+    export let required = false 
+    export let autocomplete = ""
+    export let autocapitalize = false
 
-    let props = processProps($$props, ["value", "validation", "valid", "visibilityButton"])
     let input
     let forceVisible = false
     let validations = {
@@ -36,40 +39,74 @@
     }
 </script>
 
-<div class:visibilityButton={visibilityButton}>
-    <input bind:this={input} bind:value={value} on:input={onInput} {...props} use:setType class:grow={grow}/>
-    {#if visibilityButton}
-        <button type="button" on:click={toggleVisibility}>Show</button>
+<div class="outer">
+    {#if label}
+        <label class="inputLabel" for={name}>
+            {label} {#if required}<span class="subtleText">(required)</span>{/if}
+        </label>
+    {/if}
+    
+    <div class="inner" class:visibilityButton={visibilityButton}>
+        <input class="input" bind:this={input} bind:value={value} on:input={onInput} {required} {name} {autocomplete} {autocapitalize} class:grow={grow} use:setType/>
+        {#if visibilityButton}
+            <button class="button" type="button" on:click={toggleVisibility}>Show</button>
+        {/if}
+    </div>
+
+    {#if !valid && invalidText != ""}
+        <span class="validationFailedText">{invalidText}</span>
     {/if}
 </div>
 
 <style>
-    div {
+    .subtleText {
+        font-size: x-small;
+        color: var(--darkGray1);
+    }
+
+    .validationFailedText {
+        margin-top: 2px;
+        font-size: x-small;
+        color: var(--red);
+    }
+
+    .inputLabel {
+        margin-bottom: 2px;
+    }
+
+    .outer {
+        display: flex;
+        flex-direction: column  ;
+        height: fit-content;
+    }
+
+    .inner {
         display: flex;
         flex-direction: row;
         height: fit-content;
     }
 
-    input {
+    .input {
         background-color: var(--lightGray5);
         border: 1px solid var(--lightGray4);
         border-radius: var(--borderRadius);
         padding: var(--defaultPadding);
+        margin: 0;
     }
 
-    input.grow {
+    .input.grow {
         flex-grow: 1;
     }
 
-    input:focus, input:hover {
+    .input:focus, .input:hover {
         outline: none;
     }
 
-    div.visibilityButton input {
+    .inner.visibilityButton .input {
         border-radius: var(--borderRadius) 0px 0px var(--borderRadius);
     }
 
-    div.visibilityButton button {
+    .inner.visibilityButton .button {
         background-color: var(--lightGray5);
         border: 1px solid var(--lightGray4);
         border-left: 0px;
@@ -80,11 +117,11 @@
         color: var(--darkGray1);
     }
 
-    div.visibilityButton button:hover, div:nth-child(2) button:active {
+    .inner.visibilityButton .button:hover, .inner.visibilityButton .button:active {
         cursor: pointer;
     }
 
-    div.visibilityButton button:hover:not(:active) {
+    .inner.visibilityButton .button:hover:not(:active) {
         opacity: 75%;;
     }
 </style>

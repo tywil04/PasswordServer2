@@ -88,3 +88,9 @@ export async function unprotectDatabaseKey(masterKey, protectedDatabaseKey) {
 export function randomUUID() {
   return crypto.randomUUID()
 }
+
+export async function hash(value) {
+  var buffer = utils.stringToArrayBuffer(value)
+  var hashBytes = await crypto.subtle.digest("SHA-512", buffer);
+  return utils.arrayBufferToHex(hashBytes)
+}

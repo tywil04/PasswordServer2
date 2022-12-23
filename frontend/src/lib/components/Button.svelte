@@ -10,17 +10,17 @@
 
 
 {#if !link} 
-    <button on:click={onClick} type={submit ? "submit": "button"} class={variant} class:grow={grow}>
+    <button on:click={onClick} type={submit ? "submit": "button"} class={"trigger " + variant} class:grow={grow}>
         <slot></slot>
     </button>
 {:else}
-    <a href={href} class={variant} class:grow={grow}>
+    <a href={href} class={"trigger " + variant} class:grow={grow}>
         <slot></slot>
     </a>
 {/if}
 
 <style>
-    button, a {
+    .trigger {
         background-color: var(--lightGray5);
         color: var(--textLight);
         border: 1px solid var(--lightGray4);
@@ -54,11 +54,11 @@
         border: 1px solid var(--lightGray5)
     }
 
-    button:hover, button:active, a:hover, a:active {
+    .trigger:hover, .trigger:active {
         cursor: pointer;
     }
 
-    button:hover:not(:active), a:hover:not(:active) {
+    .trigger:hover:not(:active) {
         opacity: 75%;;
     }
 

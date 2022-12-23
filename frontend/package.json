@@ -16,6 +16,7 @@
 	"type": "module",
 	"dependencies": {
 		"@sveltejs/adapter-static": "^1.0.0",
+		"normalize.css": "^8.0.1",
 		"svelte-preprocess": "^5.0.0"
 	}
 }

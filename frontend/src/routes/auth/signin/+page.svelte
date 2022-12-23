@@ -8,13 +8,15 @@
     let data = {
         email: {
             value: "",
-            valid: false,
+            valid: true,
         },
         password: {
             value: "",
-            valid: false,
+            valid: true,
         },
     }
+
+    let error = ""
 
     async function signin() {
         if (!data.email.valid) {
@@ -27,7 +29,8 @@
             return
         }
 
-        let masterKey = await crypto.generateMasterKey(data.password.value, data.email.value) // Derive a key via pbkdf2 from the users password and email using
+        let hashedEmail = await crypto.hash(data.email.value)
+        let masterKey = await crypto.generateMasterKey(data.password.value, hashedEmail) // Derive a key via pbkdf2 from the users password and email using
         let masterHash = utils.arrayBufferToHex(await crypto.generateMasterHash(data.password.value, masterKey)) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
 
         let response = await fetch("/api/v1/auth/signin", {
@@ -45,11 +48,33 @@
             let protectedDatabaseKey = (await protectedDatabaseKeyRequest.json()).ProtectedDatabaseKey
 
             sessionStorage.setItem("ProtectedDatabaseKey", protectedDatabaseKey)
-            sessionStorage.setItem("MasterKey", utils.arrayBufferToHex(await crypto.exportRawKey(masterKey)))
+            sessionStorage.setItem("Email", hashedEmail)
 
             window.location = "/"
         } else {
-            window.location.reload()
+            // reset data
+            data = {
+                email: {
+                    value: "",
+                    valid: true,
+                },
+                password: {
+                    value: "",
+                    valid: true,
+                },
+                passwordConfirm: {
+                    value: "",
+                    valid: true,
+                }
+            }
+
+            let tempError = []
+
+            for (let error of jsonResponse["Errors(s)"]) {
+                tempError.push(error["Message"])
+            }
+
+            error = tempError.join("\n")
         }
     }
 </script>
@@ -59,11 +84,11 @@
 </svelte:head>
 
 <main>
-    <div class="rowColumnContainer">
-        <div class="container">
-            <h1>Sign in</h1>
+    <div class="outer">
+        <div class="inner">
+            <h1 class="title">Sign in</h1>
             
-            <pre>To sign up, click the button labled 'Sign up'
+            <pre class="disclaimer">To sign up, click the button labled 'Sign up'
 to be redirected to the correct page.
 
 To sign in, ender your credentials.</pre>
@@ -71,24 +96,21 @@ To sign in, ender your credentials.</pre>
     
         <div class="spacer verticalDesktopHorizontalMobile big"/>
     
-        <form on:submit|preventDefault={signin} class="container">
-            <label class="inputLabel" for="email">Email</label>
-    
-            <div class="spacer small"/>
-    
-            <TextInput bind:value={data.email.value} bind:valid={data.email.valid} validation="email" name="email" autofocus autocomplete="newemail" grow/>
+        <form on:submit|preventDefault={signin} class="inner">
+            <TextInput label="Email" bind:value={data.email.value} bind:valid={data.email.valid} required validation="email" invalidText="Invalid email address." name="email" autocomplete="email" grow/>
     
             <div class="spacer big"/>
     
-            <label class="inputLabel" for="password">Password</label>
-    
-            <div class="spacer small"/>
-    
-            <TextInput bind:value={data.password.value} bind:valid={data.password.valid} visibilityButton validation="password" name="password" autocomplete="newpassword" grow/>
+            <TextInput label="Password" bind:value={data.password.value} bind:valid={data.password.valid} required visibilityButton validation="password" invalidText="Invalid password." name="password" autocomplete="newpassword" grow/>
     
             <div class="spacer big"/>
 
-            <div class="buttonContainer">
+            {#if error !== ""}
+                <span class="validationFailed">{error}</span>
+                <div class="spacer big"/>
+            {/if}
+
+            <div class="buttonGroup">
                 <Button submit grow variant="accent">Sign in</Button>
     
                 <div class="spacer vertical big"/>
@@ -109,7 +131,11 @@ To sign in, ender your credentials.</pre>
         justify-content: center;
     }
 
-    .rowColumnContainer {
+    .validationFailed {
+        color: var(--red);
+    }
+
+    .outer {
         display: flex;
         flex-direction: row;
         width: fit-content;
@@ -118,12 +144,12 @@ To sign in, ender your credentials.</pre>
         margin-right: auto;
     }
 
-    .container > h1 {
+    .title {
         margin-top: 0;
         margin-bottom: 10px;
     }
 
-    .container {
+    .inner {
         width: fit-content;
         height: fit-content;
         padding: 20px;
@@ -132,60 +158,25 @@ To sign in, ender your credentials.</pre>
         border-radius: var(--borderRadius);
     }
 
-    label.inputLabel {
-        text-align: left;
-    }
-
-    label.inputLabel::after {
-        font-size: x-small;
-        content: " (required)";
-        color: var(--darkGray1);
-    }
-
-    div.spacer {
-        padding: 0;
-        margin: 0;
-    }
-
-    div.spacer.big:not(.vertical) {
-        height: 15px;
-    }
-
-    div.spacer.small:not(.vertical) {
-        height: 2px;
-    }
-
-    div.spacer.vertical.big {
-        width: 10px;
-    }
-
-    div.spacer.verticalDesktopHorizontalMobile.big {
-        width: 15px;
-    }
-
-    div.buttonContainer {
+    .buttonGroup {
         display: flex;
         flex-direction: row;
     }
 
-    .container > pre {
+    .disclaimer {
         padding: 0;
         margin: 0;
         font-family: var(--defaultFontFamily);
     }
 
     @media only screen and (max-width: 600px) {
-        .rowColumnContainer {
+        .outer {
             flex-direction: column;
         }
 
-        .rowColumnContainer > * {
+        .outer > * {
             flex-grow: 1;
             width: auto;
-        }
-
-        div.spacer.verticalDesktopHorizontalMobile.big {
-            height: 15px;
         }
     }
 </style>

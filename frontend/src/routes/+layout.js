@@ -1,3 +1,3 @@
 export const prerender = true
 
-import "../app.css"
+import "normalize.css"

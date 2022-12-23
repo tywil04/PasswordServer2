@@ -8,6 +8,11 @@
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<script>
+			// this is a dummy script that ensures firefox loads all css before trying to render the page.
+			// it prevents a flash of unstyled concent (fouc)
+		</script>
+		
 		<style>
 			body, #app {
 				padding: 0;
