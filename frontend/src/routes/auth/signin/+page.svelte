@@ -83,7 +83,7 @@
     <title>Sign in</title>
 </svelte:head>
 
-<main>
+<main class="page">
     <div class="outer">
         <div class="inner">
             <h1 class="title">Sign in</h1>
@@ -122,7 +122,7 @@ To sign in, ender your credentials.</pre>
 </main>
 
 <style>
-    main {
+    .page {
         width: 100%;
         height: 100%;
         background-color: var(--lightGray5);

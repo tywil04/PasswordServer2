@@ -95,7 +95,7 @@
     <title>Sign up</title>
 </svelte:head>
 
-<main>
+<main class="page">
     <div class="outer">
         <div class="inner">
             <h1 class="title">Sign up</h1>
@@ -148,7 +148,7 @@ of 12 characters or more.</pre>
 </main>
 
 <style>
-    main {
+    .page {
         width: 100%;
         height: 100%;
         background-color: var(--lightGray5);
