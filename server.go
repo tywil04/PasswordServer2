@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"PasswordServer2/api"
 	"PasswordServer2/frontend"
@@ -23,5 +25,14 @@ func main() {
 	http.Handle("/", frontend.SvelteKitHandler("/"))
 	http.Handle("/api/v1/", api.APIHandler("/api/v1"))
 
-	http.ListenAndServe("0.0.0.0:8000", nil)
+	listenLocation := "0.0.0.0:8000"
+	envListenLocation := os.Getenv("LISTEN_LOCATION")
+	if envListenLocation != "" {
+		listenLocation = envListenLocation
+	}
+
+	fmt.Println("Listening on: " + listenLocation)
+	fmt.Println("Starting server")
+
+	http.ListenAndServe(listenLocation, nil)
 }
