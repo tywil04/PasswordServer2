@@ -1,4 +1,6 @@
 <script>
+    import { goto } from '$app/navigation';
+
     import * as crypto from "$lib/js/crypto.js"
     import * as utils from "$lib/js/utils.js"
 
@@ -62,7 +64,7 @@
         let success = jsonResponse.UserId !== undefined // an error response would not contain "UserId" instead it would contain "Error"
 
         if (success) {
-            window.location = "/"
+            goto("/")
         } else {
             // reset data
             data = {

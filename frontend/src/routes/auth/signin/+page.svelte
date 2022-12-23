@@ -1,4 +1,6 @@
 <script>
+    import { goto } from '$app/navigation';
+
     import * as crypto from "$lib/js/crypto.js"
     import * as utils from "$lib/js/utils.js"
 
@@ -50,7 +52,7 @@
             sessionStorage.setItem("ProtectedDatabaseKey", protectedDatabaseKey)
             sessionStorage.setItem("Email", hashedEmail)
 
-            window.location = "/"
+            goto("/")
         } else {
             // reset data
             data = {
