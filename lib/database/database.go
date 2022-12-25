@@ -1,40 +1,34 @@
 package database
 
 import (
+	"context"
 	"os"
 
 	psErrors "PasswordServer2/lib/errors"
 
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var (
-	Database *gorm.DB
-)
+var Client *mongo.Client
+var Database *mongo.Database
 
-func DatabaseConnect() *gorm.DB {
-	var databasePath string
-	switch os.Getenv("ENVIRONMENT") {
-	case "testing":
-		databasePath = os.Getenv("TESTING_DB_PATH")
-	case "development":
-		databasePath = os.Getenv("DEVELOPMENT_DB_PATH")
-	case "production":
-		databasePath = os.Getenv("DB_PATH")
-	default:
+func DatabaseConnect() {
+	environment := os.Getenv("ENVIRONMENT")
+
+	if environment == "" {
 		panic(psErrors.ErrorEnvironmentEnvNotFound)
+	} else if environment == "testing" || environment == "development" || environment == "production" {
+		client, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(os.Getenv("MONGO_DB_URI")))
+		if clientError != nil {
+			panic(psErrors.ErrorLoadingDatabase)
+		}
+
+		Database = client.Database(environment)
+		Client = client
+	} else {
+		panic(psErrors.ErrorEnvironmentEnvInvalid)
 	}
 
-	db, dbError := gorm.Open(sqlite.Open(databasePath), &gorm.Config{})
-
-	if dbError != nil {
-		panic(psErrors.ErrorLoadingDatabase)
-	}
-
-	Database = db
-
-	MigrateModels(db)
-
-	return Database
+	LoadCollections()
 }

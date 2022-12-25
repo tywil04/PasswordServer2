@@ -16,33 +16,32 @@ import (
 
 	psDatabase "PasswordServer2/lib/database"
 
-	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type SessionCookie struct {
-	UserId         uuid.UUID
-	SessionTokenId uuid.UUID
+	UserId         string
+	SessionTokenId int
 }
 
-func CreateSessionCookie(response http.ResponseWriter, user psDatabase.User) error {
+func CreateSessionCookie(response http.ResponseWriter, user primitive.M) error {
 	privateKey, _ := rsa.GenerateKey(rand.Reader, 4096)
 	publicKey := &privateKey.PublicKey
 
 	cookieExpiry := time.Now().Add(time.Hour)
 
-	sessionToken := psDatabase.SessionToken{
-		UserId: user.Id,
-		N:      publicKey.N.Bytes(),
-		E:      publicKey.E,
-		Expiry: cookieExpiry,
-	}
-	psDatabase.Database.Create(&sessionToken)
-	user.SessionTokens = append(user.SessionTokens, sessionToken)
+	sessionToken := psDatabase.NewSessionToken()
+	sessionToken.N = publicKey.N.Bytes()
+	sessionToken.E = publicKey.E
+	sessionToken.Expiry = cookieExpiry
+
+	sessionTokenId := psDatabase.InsertSessionTokenIntoUser(user, sessionToken)
 
 	sessionCookie := SessionCookie{
-		UserId:         user.Id,
-		SessionTokenId: sessionToken.Id,
+		UserId:         user["_id"].(primitive.ObjectID).Hex(),
+		SessionTokenId: sessionTokenId,
 	}
+
 	jsonPayload := new(bytes.Buffer)
 	json.NewEncoder(jsonPayload).Encode(sessionCookie)
 	hashed := sha512.Sum512(jsonPayload.Bytes())
@@ -67,15 +66,15 @@ func CreateSessionCookie(response http.ResponseWriter, user psDatabase.User) err
 	return nil
 }
 
-func VerifySessionCookie(request *http.Request) (bool, psDatabase.User, psDatabase.SessionToken, error) {
+func VerifySessionCookie(request *http.Request) (bool, primitive.M, primitive.M, error) {
 	cookie, cookieError := request.Cookie("SessionToken")
 
 	if cookie == nil || cookie.Value == "" {
-		return false, psDatabase.User{}, psDatabase.SessionToken{}, nil
+		return false, primitive.M{}, primitive.M{}, nil
 	}
 
 	if cookieError != nil {
-		return false, psDatabase.User{}, psDatabase.SessionToken{}, cookieError
+		return false, primitive.M{}, primitive.M{}, cookieError
 	}
 
 	splitValue := strings.Split(cookie.Value, ",")
@@ -86,40 +85,38 @@ func VerifySessionCookie(request *http.Request) (bool, psDatabase.User, psDataba
 	sessionCookie := SessionCookie{}
 	json.NewDecoder(bytes.NewBuffer(jsonSessionCookie)).Decode(&sessionCookie)
 
-	sessionToken := psDatabase.SessionToken{}
-	psDatabase.Database.First(&sessionToken, "id = ?", sessionCookie.SessionTokenId, "user_id = ?", sessionCookie.UserId)
+	userId, _ := primitive.ObjectIDFromHex(sessionCookie.UserId)
+	user := psDatabase.FindUserViaId(userId)
+
+	sessionTokens := user["sessiontokens"].(primitive.A)
+	sessionToken := sessionTokens[sessionCookie.SessionTokenId].(primitive.M)
 
 	publicKey := rsa.PublicKey{
-		N: new(big.Int).SetBytes(sessionToken.N),
-		E: sessionToken.E,
+		N: new(big.Int).SetBytes(sessionToken["n"].([]byte)),
+		E: sessionToken["e"].(int),
 	}
 
 	jsonPayload := new(bytes.Buffer)
 	json.NewEncoder(jsonPayload).Encode(sessionCookie)
 	hashed := sha512.Sum512(jsonPayload.Bytes())
 
-	allSessionTokens := []psDatabase.SessionToken{}
-	psDatabase.Database.Find(&allSessionTokens, "user_id = ?", sessionToken.UserId)
-
-	for _, sessionToken := range allSessionTokens {
+	for i := 0; i < len(sessionTokens); i++ {
 		// if the session has expired remove the token. we are lax about this because any cookie which is expired doesn't isnt valid which means the code cant even process it
-		if sessionToken.Expiry.Before(time.Now()) {
-			psDatabase.Database.Delete(&sessionToken)
+		sessionToken := sessionTokens[i].(primitive.M)
+		if sessionToken["expiry"].(time.Time).Before(time.Now()) {
+			psDatabase.RemoveSessionTokenViaIdFromUser(user, i)
 		}
 	}
 
 	if rsa.VerifyPKCS1v15(&publicKey, crypto.SHA512, hashed[:], signature) == nil {
-		user := psDatabase.User{}
-		psDatabase.Database.Limit(1).First(&user, "id = ?", sessionToken.UserId)
-
 		return true, user, sessionToken, nil
 	}
 
-	return false, psDatabase.User{}, psDatabase.SessionToken{}, nil
+	return false, primitive.M{}, primitive.M{}, nil
 }
 
 func ClearSessionCookie(response http.ResponseWriter, request *http.Request) (bool, error) {
-	authenticated, _, sessionToken, _ := VerifySessionCookie(request)
+	authenticated, user, sessionToken, _ := VerifySessionCookie(request)
 
 	if authenticated {
 		cookie := http.Cookie{
@@ -134,7 +131,7 @@ func ClearSessionCookie(response http.ResponseWriter, request *http.Request) (bo
 
 		http.SetCookie(response, &cookie)
 
-		psDatabase.Database.Delete(&sessionToken)
+		psDatabase.RemoveSessionTokenFromUser(user, sessionToken)
 
 		return true, nil
 	}

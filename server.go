@@ -9,7 +9,6 @@ import (
 	"PasswordServer2/frontend"
 
 	psDatabase "PasswordServer2/lib/database"
-	psErrors "PasswordServer2/lib/errors"
 
 	"github.com/joho/godotenv"
 )
@@ -17,10 +16,7 @@ import (
 func main() {
 	godotenv.Load()
 
-	database := psDatabase.DatabaseConnect()
-	if database == nil {
-		panic(psErrors.ErrorLoadingDatabase)
-	}
+	psDatabase.DatabaseConnect()
 
 	http.Handle("/", frontend.SvelteKitHandler("/"))
 	http.Handle("/api/v1/", api.APIHandler("/api/v1"))

@@ -3,59 +3,85 @@ package database
 import (
 	"time"
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type Base struct {
-	Id        uuid.UUID      `gorm:"type:uuid"`
-	CreatedAt time.Time      `gorm:"type:time"`
-	UpdatedAt time.Time      `gorm:"type:time"`
-	DeletedAt gorm.DeletedAt `sql:"index"`
-}
-
-type User struct {
-	Base
-	Email                  string         `gorm:"type:string"`
-	MasterHash             []byte         `gorm:"type:bytes"`
-	MasterHashSalt         []byte         `gorm:"type:bytes"`
-	ProtectedDatabaseKey   []byte         `gorm:"type:bytes"`
-	ProtectedDatabaseKeyIV []byte         `gorm:"type:bytes"`
-	SecureEntries          []SecureEntry  `gorm:"foreignKey:UserId;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	SessionTokens          []SessionToken `gorm:"foreignKey:UserId;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-}
-
-type SecureEntry struct {
-	Base
-	UserId           uuid.UUID         `gorm:"type:uuid"`
-	Username         []byte            `gorm:"type:bytes"`
-	Password         []byte            `gorm:"type:bytes"`
-	AdditionalFields []AdditionalField `gorm:"foreignKey:SecureEntryId;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-}
-
 type AdditionalField struct {
-	Base
-	SecureEntryId uuid.UUID `gorm:"type:uuid"`
-	Field         string    `gorm:"type:string"`
-	Value         string    `gorm:"type:string"`
+	Field string `bson:"field"`
+	Value string `bson:"value"`
+}
+
+type Entry struct {
+	Username         []byte            `bson:"username"`
+	Password         []byte            `bson:"password"`
+	AdditionalFields []AdditionalField `bson:"additionalfields"`
 }
 
 type SessionToken struct {
-	Base
-	UserId uuid.UUID `gorm:"type:uuid"`
-	N      []byte    `sql:"index" gorm:"type:bytes"`
-	E      int       `gorm:"type:int"`
-	Expiry time.Time `gorm:"type:time"`
+	N      []byte    `bson:"n"`
+	E      int       `bson:"e"`
+	Expiry time.Time `bson:"expiry"`
 }
 
-func (base *Base) BeforeCreate(tx *gorm.DB) (baseError error) {
-	base.Id = uuid.New()
-	return nil
+type MasterHash struct {
+	ClientKeyDerivation string `bson:"clientkeyderivation"`
+	ClientDigest        string `bson:"clientdigest"`
+	ClientIterations    int    `bson:"clientiterations"`
+	ClientKeyLength     int    `bson:"clientkeylength"`
+	ServerKeyDerivation string `bson:"serverkeyderivation"`
+	ServerDigest        string `bson:"serverdigest"`
+	ServerIterations    int    `bson:"serveriterations"`
+	ServerKeyLength     int    `bson:"serverkeylength"`
+	MasterHash          []byte `bson:"masterhash"`
+	Salt                []byte `bson:"salt"`
 }
 
-func MigrateModels(db *gorm.DB) {
-	db.AutoMigrate(&User{})
-	db.AutoMigrate(&SecureEntry{})
-	db.AutoMigrate(&AdditionalField{})
-	db.AutoMigrate(&SessionToken{})
+type ProtectedDatabaseKey struct {
+	ClientEncryption     string `bson:"clientencryption"`
+	ProtectedDatabaseKey []byte `bson:"protecteddatabasekey"`
+	Iv                   []byte `bson:"iv"`
+}
+
+type User struct {
+	Email                 string                 `bson:"email"`
+	MasterHashes          []MasterHash           `bson:"masterhashes"`
+	ProtectedDatabaseKeys []ProtectedDatabaseKey `bson:"protecteddatabasekeys"`
+	Entries               []Entry                `bson:"entries"`
+	SessionTokens         []SessionToken         `bson:"sessiontokens"`
+}
+
+// functions that init a struct with default values
+func NewAdditionalField() AdditionalField {
+	return AdditionalField{}
+}
+
+func NewEntry() Entry {
+	return Entry{AdditionalFields: []AdditionalField{}}
+}
+
+func NewSessionToken() SessionToken {
+	return SessionToken{Expiry: time.Now()}
+}
+
+func NewMasterHash() MasterHash {
+	return MasterHash{}
+}
+
+func NewProtectedDatabaseKey() ProtectedDatabaseKey {
+	return ProtectedDatabaseKey{}
+}
+
+func NewUser() User {
+	return User{
+		MasterHashes:          []MasterHash{},
+		ProtectedDatabaseKeys: []ProtectedDatabaseKey{},
+		Entries:               []Entry{},
+		SessionTokens:         []SessionToken{},
+	}
+}
+
+var Users *mongo.Collection
+
+func LoadCollections() {
+	Users = Database.Collection("users")
 }

@@ -74,15 +74,21 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 	strengthenedMasterHashSalt := psCrypto.RandomBytes(16)
 	strengthenedMasterHashBytes := psCrypto.StrengthenMasterHash(masterHashBytes, strengthenedMasterHashSalt)
 
-	newUser := psDatabase.User{
-		Email:                  signupParameters["Email"],
-		MasterHash:             strengthenedMasterHashBytes,
-		MasterHashSalt:         strengthenedMasterHashSalt,
-		ProtectedDatabaseKey:   decodedProtectedDatabaseKey,
-		ProtectedDatabaseKeyIV: decodedProtectedDatabaseKeyIV,
-	}
-	psDatabase.Database.Create(&newUser)
+	newMasterHash := psDatabase.NewMasterHash()
+	newMasterHash.MasterHash = strengthenedMasterHashBytes
+	newMasterHash.Salt = strengthenedMasterHashSalt
+
+	newProtectedDatabaseKey := psDatabase.NewProtectedDatabaseKey()
+	newProtectedDatabaseKey.ProtectedDatabaseKey = decodedProtectedDatabaseKey
+	newProtectedDatabaseKey.Iv = decodedProtectedDatabaseKeyIV
+
+	newUser := psDatabase.NewUser()
+	newUser.Email = signupParameters["Email"]
+	newUser.MasterHashes = []psDatabase.MasterHash{newMasterHash}
+	newUser.ProtectedDatabaseKeys = []psDatabase.ProtectedDatabaseKey{newProtectedDatabaseKey}
+
+	userId := psDatabase.CreateUser(newUser)
 
 	w.WriteHeader(http.StatusOK)
-	jsonResponse.Encode(map[string]any{"UserId": newUser.Id})
+	jsonResponse.Encode(map[string]any{"UserId": userId.Hex()})
 }
