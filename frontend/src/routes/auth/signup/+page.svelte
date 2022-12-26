@@ -45,18 +45,20 @@
         }
 
         let masterKey = await crypto.generateMasterKey(data.password.value, data.email.value) // Derive a key via pbkdf2 from the users password and email using
-        let masterHash = utils.arrayBufferToHex(await crypto.generateMasterHash(data.password.value, masterKey)) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
+        let masterHash = await crypto.generateMasterHash(data.password.value, masterKey) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
 
         let databaseKey = await crypto.generateDatabaseKey() // generate random AES-256-CBC key
         let [iv, encryptedDatabaseKey] = await crypto.protectDatabaseKey(masterKey, databaseKey) // encrypt the key with masterkey
-        let protectedDatabaseKey = utils.arrayBufferToHex(iv) + ";" + utils.arrayBufferToHex(encryptedDatabaseKey)
 
         let response = await fetch("/api/v1/auth/signup", {
             method: "POST",
             body: JSON.stringify({
-            Email: data.email.value,
-            MasterHash: masterHash,
-            ProtectedDatabaseKey: protectedDatabaseKey,
+                Email: data.email.value,
+                MasterHash: new Uint8Array(masterHash),
+                ProtectedDatabaseKey: {
+                    Iv: new Uint8Array(iv),
+                    Key: new Uint8Array(encryptedDatabaseKey)
+                },
             })
         })
         let jsonResponse = await response.json()

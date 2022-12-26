@@ -33,13 +33,13 @@
 
         let hashedEmail = await crypto.hash(data.email.value)
         let masterKey = await crypto.generateMasterKey(data.password.value, hashedEmail) // Derive a key via pbkdf2 from the users password and email using
-        let masterHash = utils.arrayBufferToHex(await crypto.generateMasterHash(data.password.value, masterKey)) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
+        let masterHash = await crypto.generateMasterHash(data.password.value, masterKey) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
 
         let response = await fetch("/api/v1/auth/signin", {
-                method: "POST",
-                body: JSON.stringify({
+            method: "POST",
+            body: JSON.stringify({
                 Email: data.email.value,
-                MasterHash: masterHash,
+                MasterHash: new Uint8Array(masterHash),
             })
         })
         let jsonResponse = await response.json()

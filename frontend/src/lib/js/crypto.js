@@ -1,61 +1,96 @@
 import * as utils from "$lib/js/utils.js"
 
-export async function importRawKey(key, extractable=false, algorithm="PBKDF2", usages=["deriveKey", "deriveBits"]) {
-  return await crypto.subtle.importKey(
-    "raw",
-    key,
-    algorithm,
-    extractable,
-    usages,
-  )
+const config = {
+  masterKey: {
+    keyFunction: "PBKDF2",
+    digest: "SHA-512",
+    iterations: 100000,
+  },
+  masterHash: {
+    keyFunction: "PBKDF2",
+    digest: "SHA-512",
+    iterations: 100000,
+    size: 512,
+  },
+  databaseKey: {
+    encryptionFunction: "AES-CBC",
+    size: 256,
+  },
+  hash: {
+    digest: "SHA-512",
+  }
 }
 
 export async function importMasterKey(key) {
   return await crypto.subtle.importKey(
     "raw",
     key,
-    {name: "AES-CBC", length: 256},
+    {
+      name: config.databaseKey.encryptionFunction,
+      length: config.databaseKey.size,
+    },
     true,
     ["wrapKey", "unwrapKey"]
   )
 }
 
-export async function exportRawKey(key) {
+export async function exportKey(key) {
   return await crypto.subtle.exportKey("raw", key)
 }
 
 export async function generateMasterKey(masterPassword, email) {
+  let masterPasswordKey = await crypto.subtle.importKey(
+    "raw",
+    utils.stringToArrayBuffer(masterPassword),
+    config.masterKey.keyFunction,
+    false,
+    ["deriveKey", "deriveBits"],
+  )
+
   return await crypto.subtle.deriveKey(
     {
-      name: "PBKDF2",
-      hash: "SHA-512",
+      name: config.masterKey.keyFunction,
+      hash: config.masterKey.digest,
       salt: utils.stringToArrayBuffer(email),
-      iterations: 100000
+      iterations: config.masterKey.iterations,
     },
-    await importRawKey(utils.stringToArrayBuffer(masterPassword)),
-    {name: "AES-CBC", length: 256},
+    masterPasswordKey,
+    {
+      name: config.databaseKey.encryptionFunction,
+      length: config.databaseKey.size,
+    },
     true,
     ["wrapKey", "unwrapKey"]
   );
 }
 
 export async function generateMasterHash(masterPassword, masterKey) {
-  const masterHash = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      hash: "SHA-512",
-      salt: utils.stringToArrayBuffer(masterPassword),
-      iterations: 100000
-    },
-    await importRawKey(await exportRawKey(masterKey)),
-    512
+  let masterKeyKey = await crypto.subtle.importKey(
+    "raw",
+    utils.stringToArrayBuffer(masterKey),
+    config.masterHash.keyFunction,
+    false,
+    ["deriveKey", "deriveBits"],
   )
-  return masterHash
+
+  return await crypto.subtle.deriveBits(
+    {
+      name: config.masterHash.keyFunction,
+      hash: config.masterHash.digest,
+      salt: utils.stringToArrayBuffer(masterPassword),
+      iterations: config.masterHash.iterations,
+    },
+    masterKeyKey,
+    config.masterHash.size,
+  )
 }
 
 export async function generateDatabaseKey() {
   return await crypto.subtle.generateKey(
-    {name: "AES-CBC", length: 256},
+    {
+      name: config.databaseKey.encryptionFunction, 
+      length: config.databaseKey.size
+    },
     true,
     ["encrypt", "decrypt"]
   )
@@ -67,7 +102,10 @@ export async function protectDatabaseKey(masterKey, databaseKey) {
     "raw", 
     databaseKey, 
     masterKey, 
-    {name: "AES-CBC", iv}
+    {
+      name: config.databaseKey.encryptionFunction, 
+      iv
+    }
   )
   return [iv, protectedDatabaseKey]
 }
@@ -78,8 +116,14 @@ export async function unprotectDatabaseKey(masterKey, protectedDatabaseKey) {
     "raw", 
     wrappedDatabaseKey, 
     masterKey, 
-    {name: "AES-CBC", iv},
-    {name: "AES-CBC", length: 256},
+    {
+      name: config.databaseKey.encryptionFunction, 
+      iv
+    },
+    {
+      name: config.databaseKey.encryptionFunction, 
+      length: config.databaseKey.size
+    },
     false,
     ["encrypt", "decrypt"]
   )
@@ -91,6 +135,6 @@ export function randomUUID() {
 
 export async function hash(value) {
   var buffer = utils.stringToArrayBuffer(value)
-  var hashBytes = await crypto.subtle.digest("SHA-512", buffer);
+  var hashBytes = await crypto.subtle.digest(config.hash.digest, buffer);
   return utils.arrayBufferToHex(hashBytes)
 }
