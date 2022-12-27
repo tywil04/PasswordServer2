@@ -1,11 +1,15 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	psCrypto "PasswordServer2/lib/crypto"
 	psDatabase "PasswordServer2/lib/database"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func PostSignup(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +63,23 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	configFound := false
+	configs := []psDatabase.ClientConfig{}
+	query, _ := psDatabase.ClientConfigs.Find(context.TODO(), bson.M{"masterkey": 1})
+	query.All(context.TODO(), &configs)
+	var configId primitive.ObjectID
+
+	for _, config := range configs {
+		if config == signupParameters.Config {
+			configFound = true
+			configId = config.Id
+		}
+	}
+
+	if !configFound {
+		psDatabase.CreateClientConfig(signupParameters.Config)
+	}
+
 	// Use pbkdf2 to strengthen keys with a random salt
 	strengthenedMasterHashSalt := psCrypto.RandomBytes(16)
 	strengthenedMasterHashBytes := psCrypto.StrengthenMasterHash(signupParameters.MasterHash, strengthenedMasterHashSalt)
@@ -71,14 +92,14 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 	newProtectedDatabaseKey.Key = signupParameters.ProtectedDatabaseKey.Key
 	newProtectedDatabaseKey.Iv = signupParameters.ProtectedDatabaseKey.Iv
 
-	newStoredConfig := psDatabase.NewConfigProfile()
-	newStoredConfig.MasterHash = newMasterHash
-	newStoredConfig.ProtectedDatabaseKey = newProtectedDatabaseKey
-	newStoredConfig.Config = signupParameters.Config
+	newCredential := psDatabase.NewCredential()
+	newCredential.MasterHash = newMasterHash
+	newCredential.ProtectedDatabaseKey = newProtectedDatabaseKey
+	newCredential.ClientConfigId = configId
 
 	newUser := psDatabase.NewUser()
 	newUser.Email = signupParameters.Email
-	newUser.ConfigProfiles = []psDatabase.ConfigProfile{newStoredConfig}
+	newUser.Credentials = []psDatabase.Credential{newCredential}
 
 	userId := psDatabase.CreateUser(newUser)
 

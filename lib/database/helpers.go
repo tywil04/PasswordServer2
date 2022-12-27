@@ -39,23 +39,16 @@ func UserEmailInUse(email string) bool {
 	return !reflect.DeepEqual(user, empty)
 }
 
-func UserConfigExists(user primitive.M, comparisonProfile ConfigProfile) bool {
-	profiles := []ConfigProfile{}
-	bsonBytes, _ := bson.Marshal(user["configprofiles"])
-	bson.Unmarshal(bsonBytes, &profiles)
-	for _, profile := range profiles {
-		if reflect.DeepEqual(profile, comparisonProfile) {
-			return true
-		}
-	}
-	return false
-}
-
 func ConvertPrimitiveUserToUserModel(user primitive.M) User {
 	userResult := NewUser()
 	bsonBytes, _ := bson.Marshal(user)
 	bson.Unmarshal(bsonBytes, &userResult)
 	return userResult
+}
+
+func CreateClientConfig(clientConfig ClientConfig) primitive.ObjectID {
+	newConfig, _ := ClientConfigs.InsertOne(context.TODO(), clientConfig)
+	return newConfig.InsertedID.(primitive.ObjectID)
 }
 
 func InsertIntoUserGeneric(user primitive.M, collection string, generic any) User {
@@ -68,9 +61,9 @@ func InsertSessionTokenIntoUser(user primitive.M, token SessionToken) int {
 	return len(userAfter.SessionTokens)
 }
 
-func InsertConfigProfileIntoUser(user primitive.M, profile ConfigProfile) int {
-	userAfter := InsertIntoUserGeneric(user, "configprofiles", profile)
-	return len(userAfter.ConfigProfiles)
+func InsertCredentialIntoUser(user primitive.M, credential Credential) int {
+	userAfter := InsertIntoUserGeneric(user, "credentials", credential)
+	return len(userAfter.Credentials)
 }
 
 func RemoveFromUserViaIdGeneric(user primitive.M, collection string, id int) User {

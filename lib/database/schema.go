@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -15,60 +16,70 @@ type AdditionalField struct {
 }
 
 type Entry struct {
-	Username         []byte            `bson:"username"`
-	Password         []byte            `bson:"password"`
-	AdditionalFields []AdditionalField `bson:"additionalfields"`
+	Id               primitive.ObjectID `bson:"_id"`
+	Username         []byte             `bson:"username"`
+	Password         []byte             `bson:"password"`
+	AdditionalFields []AdditionalField  `bson:"additionalfields"`
 }
 
 type SessionToken struct {
-	N      []byte    `bson:"n"`
-	E      int       `bson:"e"`
-	Expiry time.Time `bson:"expiry"`
+	Id     primitive.ObjectID `bson:"_id"`
+	N      []byte             `bson:"n"`
+	E      int                `bson:"e"`
+	Expiry time.Time          `bson:"expiry"`
 }
 
 type MasterHash struct {
-	Hash []byte `bson:"halt"`
-	Salt []byte `bson:"salt"`
+	Id   primitive.ObjectID `bson:"_id"`
+	Hash []byte             `bson:"halt"`
+	Salt []byte             `bson:"salt"`
 }
 
 type ProtectedDatabaseKey struct {
-	Key []byte `bson:"key"`
-	Iv  []byte `bson:"iv"`
+	Id  primitive.ObjectID `bson:"_id"`
+	Key []byte             `bson:"key"`
+	Iv  []byte             `bson:"iv"`
 }
 
 type ClientConfigMasterKeyMasterHash struct {
-	KeyFunction string `bson:"keyfunction"`
-	Digest      string `bson:"digest"`
-	Iterations  int    `bson:"iterations"`
+	Id          primitive.ObjectID `bson:"_id"`
+	KeyFunction string             `bson:"keyfunction"`
+	Digest      string             `bson:"digest"`
+	Iterations  int                `bson:"iterations"`
 }
 
 type ClientConfigDatabaseKey struct {
-	EncryptionFunction string `bson:"encryptionfunction"`
-	Size               int    `bson:"size"`
+	Id                 primitive.ObjectID `bson:"_id"`
+	EncryptionFunction string             `bson:"encryptionfunction"`
+	Size               int                `bson:"size"`
 }
 
 type ClientConfigHash struct {
-	Digest string `bson:"digest"`
+	Id     primitive.ObjectID `bson:"_id"`
+	Digest string             `bson:"digest"`
 }
 
 type ClientConfig struct {
+	Id          primitive.ObjectID              `bson:"_id"`
 	MasterKey   ClientConfigMasterKeyMasterHash `bson:"masterkey"`
 	MasterHash  ClientConfigMasterKeyMasterHash `bson:"masterhash"`
 	DatabaseKey ClientConfigDatabaseKey         `bson:"databasekey"`
 	Hash        ClientConfigHash                `bson:"hash"`
 }
 
-type ConfigProfile struct {
+type Credential struct {
+	Id                   primitive.ObjectID   `bson:"_id"`
 	MasterHash           MasterHash           `bson:"masterhash"`
 	ProtectedDatabaseKey ProtectedDatabaseKey `bson:"protecteddatabasekey"`
-	Config               ClientConfig         `bson:"clientconfig"`
+	ClientConfigId       primitive.ObjectID   `bson:"clientconfigid"`
 }
 
 type User struct {
-	Email          string          `bson:"email"`
-	ConfigProfiles []ConfigProfile `bson:"configprofiles"`
-	Entries        []Entry         `bson:"entries"`
-	SessionTokens  []SessionToken  `bson:"sessiontokens"`
+	Id            primitive.ObjectID `bson:"_id"`
+	Email         string             `bson:"email"`
+	Credentials   []Credential       `bson:"credentials"`
+	Entries       []Entry            `bson:"entries"`
+	SessionTokens []SessionToken     `bson:"sessiontokens"`
 }
 
 // functions that init a struct with default values
@@ -104,26 +115,28 @@ func NewClientConfig() ClientConfig {
 	return ClientConfig{}
 }
 
-func NewConfigProfile() ConfigProfile {
-	return ConfigProfile{}
-}
-
 func NewProtectedDatabaseKey() ProtectedDatabaseKey {
 	return ProtectedDatabaseKey{}
 }
 
+func NewCredential() Credential {
+	return Credential{}
+}
+
 func NewUser() User {
 	return User{
-		ConfigProfiles: []ConfigProfile{},
-		Entries:        []Entry{},
-		SessionTokens:  []SessionToken{},
+		Credentials:   []Credential{},
+		Entries:       []Entry{},
+		SessionTokens: []SessionToken{},
 	}
 }
 
 var Users *mongo.Collection
+var ClientConfigs *mongo.Collection
 
 func SetupSchema() {
 	Users = Database.Collection("users")
+	ClientConfigs = Database.Collection("clientconfigs")
 
 	Users.Indexes().CreateOne(context.TODO(), mongo.IndexModel{
 		Keys:    bson.D{{Key: "email", Value: 1}},

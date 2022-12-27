@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"net/http"
@@ -8,7 +9,7 @@ import (
 	psCrypto "PasswordServer2/lib/crypto"
 	psDatabase "PasswordServer2/lib/database"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func PostSignin(w http.ResponseWriter, r *http.Request) {
@@ -57,29 +58,40 @@ func PostSignin(w http.ResponseWriter, r *http.Request) {
 	userModel := psDatabase.ConvertPrimitiveUserToUserModel(user)
 
 	configFound := false
-	oldConfigs := make([]psDatabase.ClientConfig, len(userModel.ConfigProfiles))
-	foundStoredConfig := psDatabase.ConfigProfile{}
+	foundCredential := psDatabase.NewCredential()
+	configs := []psDatabase.ClientConfig{}
+	query, _ := psDatabase.ClientConfigs.Find(context.TODO(), bson.M{"masterkey": 1})
+	query.All(context.TODO(), &configs)
 
-	for index, profile := range userModel.ConfigProfiles {
-		if profile.Config == signinParameters.Config {
-			configFound = true
-			foundStoredConfig = profile
-			oldConfigs[index] = profile.Config
+	for _, credential := range userModel.Credentials {
+		for _, config := range configs {
+			if config == signinParameters.Config {
+				configFound = true
+			}
+
+			if credential.ClientConfigId == config.Id {
+				foundCredential = credential
+			}
 		}
 	}
 
 	if !configFound {
+		psDatabase.CreateClientConfig(signinParameters.Config)
+
+		existingConfig := psDatabase.NewClientConfig()
+		psDatabase.ClientConfigs.FindOne(context.TODO(), bson.M{"masterkey": 1}).Decode(&existingConfig)
+
 		w.WriteHeader(http.StatusOK)
 		jsonResponse.Encode(map[string]any{
-			"Authenticated":     false,
-			"NewConfigRequired": true,
-			"OldConfigs":        oldConfigs,
+			"Authenticated":          false,
+			"NewCredentialForConfig": true,
+			"ExistingConfig":         existingConfig,
 		})
 		return
 	}
 
-	strengthenedMasterHashBytes := psCrypto.StrengthenMasterHash(signinParameters.MasterHash, foundStoredConfig.MasterHash.Salt)
-	same := subtle.ConstantTimeCompare(foundStoredConfig.MasterHash.Hash, strengthenedMasterHashBytes) == 1
+	strengthenedMasterHashBytes := psCrypto.StrengthenMasterHash(signinParameters.MasterHash, foundCredential.MasterHash.Salt)
+	same := subtle.ConstantTimeCompare(foundCredential.MasterHash.Hash, strengthenedMasterHashBytes) == 1
 
 	if same {
 		cookieError := psCrypto.CreateSessionCookie(w, user)
@@ -93,8 +105,9 @@ func PostSignin(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	jsonResponse.Encode(map[string]any{
-		"Authenticated":        same,
-		"UserId":               user["_id"].(primitive.ObjectID).Hex(),
-		"ProtectedDatabaseKey": foundStoredConfig.ProtectedDatabaseKey,
+		"Authenticated":          same,
+		"NewCredentialForConfig": false,
+		"UserId":                 userModel.Id.Hex(),
+		"ProtectedDatabaseKey":   foundCredential.ProtectedDatabaseKey,
 	})
 }
