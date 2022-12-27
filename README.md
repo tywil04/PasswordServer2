@@ -22,3 +22,4 @@ go build server.go # Build backend
 # TODO
 
 fix communication when data is needed to be updated, right now the server doesnt correctly return "OldConfigs"
+FIX CLIENT SENDING UPDATED CREDNEITAL WITH NEW CLIENT
