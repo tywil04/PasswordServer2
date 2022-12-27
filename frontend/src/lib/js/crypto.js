@@ -1,6 +1,6 @@
 import * as utils from "$lib/js/utils.js"
 
-const config = {
+export const config = {
   masterKey: {
     keyFunction: "PBKDF2",
     digest: "SHA-512",
@@ -14,14 +14,22 @@ const config = {
   },
   databaseKey: {
     encryptionFunction: "AES-CBC",
-    size: 256,
+    size: 128,
   },
   hash: {
     digest: "SHA-512",
   }
 }
 
-export async function importMasterKey(key) {
+function useConfig(testConfig) {
+  if (testConfig === null) {
+    return config 
+  }
+  return testConfig
+}
+
+export async function importMasterKey(key, optionalConfig=null) {
+  let config = useConfig(optionalConfig)
   return await crypto.subtle.importKey(
     "raw",
     key,
@@ -38,7 +46,8 @@ export async function exportKey(key) {
   return await crypto.subtle.exportKey("raw", key)
 }
 
-export async function generateMasterKey(masterPassword, email) {
+export async function generateMasterKey(masterPassword, email, optionalConfig=null) {
+  let config = useConfig(optionalConfig)
   let masterPasswordKey = await crypto.subtle.importKey(
     "raw",
     utils.stringToArrayBuffer(masterPassword),
@@ -64,7 +73,8 @@ export async function generateMasterKey(masterPassword, email) {
   );
 }
 
-export async function generateMasterHash(masterPassword, masterKey) {
+export async function generateMasterHash(masterPassword, masterKey, optionalConfig=null) {
+  let config = useConfig(optionalConfig)
   let masterKeyKey = await crypto.subtle.importKey(
     "raw",
     utils.stringToArrayBuffer(masterKey),
@@ -85,7 +95,8 @@ export async function generateMasterHash(masterPassword, masterKey) {
   )
 }
 
-export async function generateDatabaseKey() {
+export async function generateDatabaseKey(optionalConfig) {
+  let config = useConfig(optionalConfig)
   return await crypto.subtle.generateKey(
     {
       name: config.databaseKey.encryptionFunction, 
@@ -96,7 +107,8 @@ export async function generateDatabaseKey() {
   )
 }
 
-export async function protectDatabaseKey(masterKey, databaseKey) {
+export async function protectDatabaseKey(masterKey, databaseKey, optionalConfig=null) {
+  let config = useConfig(optionalConfig)
   const iv = crypto.getRandomValues(new Uint8Array(16))
   const protectedDatabaseKey = await crypto.subtle.wrapKey(
     "raw", 
@@ -110,7 +122,8 @@ export async function protectDatabaseKey(masterKey, databaseKey) {
   return [iv, protectedDatabaseKey]
 }
 
-export async function unprotectDatabaseKey(masterKey, protectedDatabaseKey) {
+export async function unprotectDatabaseKey(masterKey, protectedDatabaseKey, optionalConfig=null) {
+  let config = useConfig(optionalConfig)
   const [iv, wrappedDatabaseKey] = protectedDatabaseKey
   return await crypto.subtle.unwrapKey(
     "raw", 
@@ -133,7 +146,8 @@ export function randomUUID() {
   return crypto.randomUUID()
 }
 
-export async function hash(value) {
+export async function hash(value, optionalConfig=null) {
+  let config = useConfig(optionalConfig)
   var buffer = utils.stringToArrayBuffer(value)
   var hashBytes = await crypto.subtle.digest(config.hash.digest, buffer);
   return utils.arrayBufferToHex(hashBytes)

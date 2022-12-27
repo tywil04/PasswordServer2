@@ -12,11 +12,10 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 	signupParameters := struct {
 		Email                string
 		MasterHash           []byte
-		ProtectedDatabaseKey struct {
-			Key []byte
-			Iv  []byte
-		}
+		ProtectedDatabaseKey psDatabase.ProtectedDatabaseKey
+		Config               psDatabase.ClientConfig
 	}{}
+
 	decoderError := json.NewDecoder(r.Body).Decode(&signupParameters)
 
 	// Create json encoder that will be used to write response
@@ -45,6 +44,15 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 		validationErrors = append(validationErrors, map[string]any{"Code": "04", "Message": "Required parameter 'ProtectedDatabaseKey.Key' not provided."})
 	}
 
+	var emptyConfig psDatabase.ClientConfig
+	if signupParameters.Config == emptyConfig {
+		validationErrors = append(validationErrors, map[string]any{"Code": "05", "Message": "Required parameter 'Config' not provided."})
+	}
+
+	if psDatabase.UserEmailInUse(signupParameters.Email) {
+		validationErrors = append(validationErrors, map[string]any{"Code": "06", "Message": "There is an existing user with the email provided."})
+	}
+
 	if len(validationErrors) != 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		jsonResponse.Encode(map[string]any{"Error(s)": validationErrors})
@@ -63,10 +71,14 @@ func PostSignup(w http.ResponseWriter, r *http.Request) {
 	newProtectedDatabaseKey.Key = signupParameters.ProtectedDatabaseKey.Key
 	newProtectedDatabaseKey.Iv = signupParameters.ProtectedDatabaseKey.Iv
 
+	newStoredConfig := psDatabase.NewConfigProfile()
+	newStoredConfig.MasterHash = newMasterHash
+	newStoredConfig.ProtectedDatabaseKey = newProtectedDatabaseKey
+	newStoredConfig.Config = signupParameters.Config
+
 	newUser := psDatabase.NewUser()
 	newUser.Email = signupParameters.Email
-	newUser.MasterHashes = []psDatabase.MasterHash{newMasterHash}
-	newUser.ProtectedDatabaseKeys = []psDatabase.ProtectedDatabaseKey{newProtectedDatabaseKey}
+	newUser.ConfigProfiles = []psDatabase.ConfigProfile{newStoredConfig}
 
 	userId := psDatabase.CreateUser(newUser)
 

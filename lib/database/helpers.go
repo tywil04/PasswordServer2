@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"reflect"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -16,7 +17,7 @@ func CreateUser(user User) primitive.ObjectID {
 func UpdateUser(user primitive.M, update bson.M) User {
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 	newUser := NewUser()
-	Users.FindOneAndUpdate(context.TODO(), user, update, opts).Decode(&newUser)
+	Users.FindOneAndUpdate(context.TODO(), bson.M{"_id": user["_id"]}, update, opts).Decode(&newUser)
 	return newUser
 }
 
@@ -24,6 +25,37 @@ func FindUserViaId(userId primitive.ObjectID) primitive.M {
 	user := bson.M{}
 	Users.FindOne(context.TODO(), bson.M{"_id": userId}).Decode(&user)
 	return user
+}
+
+func FindUserViaEmail(email string) primitive.M {
+	user := bson.M{}
+	Users.FindOne(context.TODO(), bson.M{"email": email}).Decode(&user)
+	return user
+}
+
+func UserEmailInUse(email string) bool {
+	empty := primitive.M{}
+	user := FindUserViaEmail(email)
+	return !reflect.DeepEqual(user, empty)
+}
+
+func UserConfigExists(user primitive.M, comparisonProfile ConfigProfile) bool {
+	profiles := []ConfigProfile{}
+	bsonBytes, _ := bson.Marshal(user["configprofiles"])
+	bson.Unmarshal(bsonBytes, &profiles)
+	for _, profile := range profiles {
+		if reflect.DeepEqual(profile, comparisonProfile) {
+			return true
+		}
+	}
+	return false
+}
+
+func ConvertPrimitiveUserToUserModel(user primitive.M) User {
+	userResult := NewUser()
+	bsonBytes, _ := bson.Marshal(user)
+	bson.Unmarshal(bsonBytes, &userResult)
+	return userResult
 }
 
 func InsertIntoUserGeneric(user primitive.M, collection string, generic any) User {
@@ -34,6 +66,11 @@ func InsertIntoUserGeneric(user primitive.M, collection string, generic any) Use
 func InsertSessionTokenIntoUser(user primitive.M, token SessionToken) int {
 	userAfter := InsertIntoUserGeneric(user, "sessiontokens", token)
 	return len(userAfter.SessionTokens)
+}
+
+func InsertConfigProfileIntoUser(user primitive.M, profile ConfigProfile) int {
+	userAfter := InsertIntoUserGeneric(user, "configprofiles", profile)
+	return len(userAfter.ConfigProfiles)
 }
 
 func RemoveFromUserViaIdGeneric(user primitive.M, collection string, id int) User {

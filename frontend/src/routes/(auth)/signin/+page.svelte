@@ -7,7 +7,7 @@
     import Button from "$lib/components/Button.svelte";
     import TextInput from "$lib/components/TextInput.svelte";
 
-    let data = {
+    let formData = {
         email: {
             value: "",
             valid: true,
@@ -20,39 +20,67 @@
 
     let error = ""
 
-    async function signin() {
-        if (!data.email.valid) {
+    async function signin(event, optionalConfig=null, optionalOldConfig=null) {
+        if (!formData.email.valid) {
             console.log("Email not valid!")
             return
         }
 
-        if (!data.password.valid) {
+        if (!formData.password.valid) {
             console.log("Password not valid!")
             return
         }
 
-        let hashedEmail = await crypto.hash(data.email.value)
-        let masterKey = await crypto.generateMasterKey(data.password.value, hashedEmail) // Derive a key via pbkdf2 from the users password and email using
-        let masterHash = await crypto.generateMasterHash(data.password.value, masterKey) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
+        let config = optionalConfig === null ? crypto.config: optionalConfig
+
+        let hashedEmail = await crypto.hash(formData.email.value, config)
+        let masterKey = await crypto.generateMasterKey(formData.password.value, hashedEmail, config) // Derive a key via pbkdf2 from the users password and email using
+        let masterHash = await crypto.generateMasterHash(formData.password.value, masterKey, config) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
 
         let response = await fetch("/api/v1/auth/signin", {
             method: "POST",
             body: JSON.stringify({
-                Email: data.email.value,
-                MasterHash: new Uint8Array(masterHash),
+                Email: formData.email.value,
+                MasterHash: Array.from(new Uint8Array(masterHash)),
+                Config: config,
             })
         })
         let jsonResponse = await response.json()
 
         // jsonResponse.Authenticated is only used as a quick way to see if a user is authenticated, authentication is used server-side, this value means nothing
         if (jsonResponse.Authenticated) {
-            let protectedDatabaseKeyRequest = await fetch("/api/v1/user/protectedDatabaseKey", {method: "GET"})
-            let protectedDatabaseKey = (await protectedDatabaseKeyRequest.json()).ProtectedDatabaseKey
+            let pdk = jsonResponse.ProtectedDatabaseKey
+            let userId = jsonResponse.UserId
+            sessionStorage.setItem("PasswordServer2:ProtectedDatabaseKey", JSON.stringify(pdk))
+            sessionStorage.setItem("PasswordServer2:Email", hashedEmail)
+            sessionStorage.setItem("PasswordServer2:UserId", userId)
 
-            sessionStorage.setItem("ProtectedDatabaseKey", protectedDatabaseKey)
-            sessionStorage.setItem("Email", hashedEmail)
+            if (optionalConfig !== null) {
+                let masterKey = await crypto.generateMasterKey(formData.password.value, hashedEmail, optionalOldConfig)
+                let dk = crypto.unprotectDatabaseKey(masterKey, [pdk.Iv, pdk.Key], optionalOldConfig)
+                let newDk = crypto.protectDatabaseKey(masterKey, dk, config)
+
+                await fetch("/api/v1/users/configprofiles/new", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        UserId: userId,
+                        MasterHash: Array.from(new Uint8Array(masterHash)),
+                        ProtectedDatabaseKey: {
+                            "Iv": Array.from(new Uint8Array(newDk[0])),
+                            "Key": Array.from(new Uint8Array(newDk[1])),
+                        },
+                        Config: config,
+                    })
+                })
+
+                dk = null
+            }
 
             goto("/")
+        } else if (!jsonResponse.Authenticated && jsonResponse.NewConfigRequired === true) {
+            let oldConfig = jsonResponse.OldConfigs[0]
+            console.log(oldConfig)
+            signin(event, oldConfig, config)
         } else {
             // reset data
             data = {
@@ -99,11 +127,11 @@ To sign in, ender your credentials.</pre>
         <div class="spacer verticalDesktopHorizontalMobile big"/>
     
         <form on:submit|preventDefault={signin} class="inner">
-            <TextInput label="Email" bind:value={data.email.value} bind:valid={data.email.valid} required validation="email" invalidText="Invalid email address." name="email" autocomplete="email" grow/>
+            <TextInput label="Email" bind:value={formData.email.value} bind:valid={formData.email.valid} required validation="email" invalidText="Invalid email address." name="email" autocomplete="email" grow/>
     
             <div class="spacer big"/>
     
-            <TextInput label="Password" bind:value={data.password.value} bind:valid={data.password.valid} required visibilityButton validation="password" invalidText="Invalid password." name="password" autocomplete="newpassword" grow/>
+            <TextInput label="Password" bind:value={formData.password.value} bind:valid={formData.password.valid} required visibilityButton validation="password" invalidText="Invalid password." name="password" autocomplete="newpassword" grow/>
     
             <div class="spacer big"/>
 

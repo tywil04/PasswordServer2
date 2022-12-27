@@ -30,5 +30,5 @@ func DatabaseConnect() {
 		panic(psErrors.ErrorEnvironmentEnvInvalid)
 	}
 
-	LoadCollections()
+	SetupSchema()
 }

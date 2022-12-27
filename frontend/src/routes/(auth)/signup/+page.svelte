@@ -7,7 +7,7 @@
     import Button from "$lib/components/Button.svelte";
     import TextInput from "$lib/components/TextInput.svelte";
 
-    let data = {
+    let formData = {
         email: {
             value: "",
             valid: true,
@@ -27,25 +27,26 @@
     async function signup() {
         error = ""
 
-        if (!data.email.valid || data.email.value == "") {
+        if (!formData.email.valid || formData.email.value == "") {
             return
         }
 
-        if (!data.password.valid || data.password.value == "") {
+        if (!formData.password.valid || formData.password.value == "") {
             return
         }
 
-        if (!data.passwordConfirm.valid || data.passwordConfirm.value == "") {
+        if (!formData.passwordConfirm.valid || formData.passwordConfirm.value == "") {
             return 
         }
 
-        if (data.password.value !== data.passwordConfirm.value) {
+        if (formData.password.value !== formData.passwordConfirm.value) {
             error = "Passwords are not the same."
             return
         }
 
-        let masterKey = await crypto.generateMasterKey(data.password.value, data.email.value) // Derive a key via pbkdf2 from the users password and email using
-        let masterHash = await crypto.generateMasterHash(data.password.value, masterKey) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
+        let hashedEmail = await crypto.hash(formData.email.value)
+        let masterKey = await crypto.generateMasterKey(formData.password.value, hashedEmail) // Derive a key via pbkdf2 from the users password and email using
+        let masterHash = await crypto.generateMasterHash(formData.password.value, masterKey) // Derive bits via pbkdf2 from the masterkey and the users password (this is used for server-side auth)
 
         let databaseKey = await crypto.generateDatabaseKey() // generate random AES-256-CBC key
         let [iv, encryptedDatabaseKey] = await crypto.protectDatabaseKey(masterKey, databaseKey) // encrypt the key with masterkey
@@ -53,12 +54,13 @@
         let response = await fetch("/api/v1/auth/signup", {
             method: "POST",
             body: JSON.stringify({
-                Email: data.email.value,
-                MasterHash: new Uint8Array(masterHash),
+                Email: formData.email.value,
+                MasterHash: Array.from(new Uint8Array(masterHash)),
                 ProtectedDatabaseKey: {
-                    Iv: new Uint8Array(iv),
-                    Key: new Uint8Array(encryptedDatabaseKey)
+                    Iv: Array.from(new Uint8Array(iv)),
+                    Key: Array.from(new Uint8Array(encryptedDatabaseKey)),
                 },
+                Config: crypto.config,
             })
         })
         let jsonResponse = await response.json()
@@ -69,7 +71,7 @@
             goto("/")
         } else {
             // reset data
-            data = {
+            formData = {
                 email: {
                     value: "",
                     valid: true,
@@ -86,7 +88,7 @@
 
             let tempError = []
 
-            for (let error of jsonResponse["Errors(s)"]) {
+            for (let error of jsonResponse["Error(s)"] ) {
                 tempError.push(error["Message"])
             }
 
@@ -123,15 +125,15 @@ of 12 characters or more.</pre>
         <div class="spacer verticalDesktopHorizontalMobile big"/>
     
         <form on:submit|preventDefault={signup} class="inner">
-            <TextInput label="Email" bind:value={data.email.value} bind:valid={data.email.valid} required validation="email" invalidText="Invalid email address." name="email" autocomplete="email" grow/>
+            <TextInput label="Email" bind:value={formData.email.value} bind:valid={formData.email.valid} required validation="email" invalidText="Invalid email address." name="email" autocomplete="email" grow/>
     
             <div class="spacer big"/>
     
-            <TextInput label="Password" bind:value={data.password.value} bind:valid={data.password.valid} required visibilityButton validation="password" invalidText="Invalid password." name="password" autocomplete="new-password" grow/>
+            <TextInput label="Password" bind:value={formData.password.value} bind:valid={formData.password.valid} required visibilityButton validation="password" invalidText="Invalid password." name="password" autocomplete="new-password" grow/>
     
             <div class="spacer big"/>
 
-            <TextInput label="Password Confirm" bind:value={data.passwordConfirm.value} bind:valid={data.passwordConfirm.valid} required visibilityButton validation="password" invalidText="Invalid password confirm." name="passwordConfirm" autocomplete="password" grow/>
+            <TextInput label="Password Confirm" bind:value={formData.passwordConfirm.value} bind:valid={formData.passwordConfirm.valid} required visibilityButton validation="password" invalidText="Invalid password confirm." name="passwordConfirm" autocomplete="password" grow/>
     
             <div class="spacer big"/>
 

@@ -18,3 +18,7 @@ go build server.go # Build backend
 
 ./server.go # Run resulting executable
 ```
+
+# TODO
+
+fix communication when data is needed to be updated, right now the server doesnt correctly return "OldConfigs"
